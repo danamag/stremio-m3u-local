@@ -1,0 +1,59 @@
+{
+  "style": {
+    "title": "Display Style",
+    "type": "select",
+    "options": ["Catalogs", "Channels"],
+    "default": "Catalogs"
+  },
+  "m3u_name_1": {
+    "title": "List name 1",
+    "type": "string",
+    "default": ""
+  },
+  "m3u_url_1": {
+    "title": "M3U URL 1",
+    "type": "string",
+    "default": "",
+    "required": true
+  },
+  "m3u_name_2": {
+    "title": "List name 2",
+    "type": "string",
+    "default": ""
+  },
+  "m3u_url_2": {
+    "title": "M3U URL 2",
+    "type": "string",
+    "default": ""
+  },
+  "m3u_name_3": {
+    "title": "List name 3",
+    "type": "string",
+    "default": ""
+  },
+  "m3u_url_3": {
+    "title": "M3U URL 3",
+    "type": "string",
+    "default": ""
+  },
+  "m3u_name_4": {
+    "title": "List name 4",
+    "type": "string",
+    "default": ""
+  },
+  "m3u_url_4": {
+    "title": "M3U URL 4",
+    "type": "string",
+    "default": ""
+  },
+  "m3u_name_5": {
+    "title": "List name 5",
+    "type": "string",
+    "default": ""
+  },
+  "m3u_url_5": {
+    "title": "M3U URL 5",
+    "type": "string",
+    "default": ""
+  }
+}
