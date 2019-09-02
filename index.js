@@ -223,10 +223,10 @@ builder.defineStreamHandler(args => {
 	return new Promise((resolve, reject) => {
 		if (config.style == 'Channels') {
 			const url = decodeURIComponent(args.id.replace(defaults.prefix + 'url_', ''))
-			resolve({ streams: [{ url }] })
+			resolve({ streams: [{ url, title: 'Stream' }] })
 		} else if (config.style == 'Catalogs') {
 			const url = atob(decodeURIComponent(args.id.replace(defaults.prefix + 'url_', '').split('_')[1]))
-			resolve({ streams: [{ url }] })
+			resolve({ streams: [{ url, title: 'Stream' }] })
 		}
 	})
 })
