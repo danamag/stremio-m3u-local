@@ -51,6 +51,7 @@ function getM3U(url, idx) {
 				const playlist = m3u(body)
 				const items = []
 				let title
+				let poster
 				playlist.forEach(line => {
 					if (typeof line == 'string') {
 						if (config.style == 'Channels')
@@ -63,13 +64,18 @@ function getM3U(url, idx) {
 								id: defaults.prefix + 'url_' + idx + '_' + encodeURIComponent(btoa(line)),
 								name: title,
 								posterShape: 'square',
+								poster: poster || undefined,
 								type: 'tv'
 							})
 						title = false
+						poster = false
 					} else if (typeof line == 'object' && line.EXTINF) {
 						for (let key in line.EXTINF)
-							if (key != '-1 tvg-id' && !title)
+							if (!key.includes('tvg-id') && !key.includes('tvg-logo') && !title)
 								title = key
+							else if (key.includes('tvg-logo') && line.EXTINF[key])
+								poster = line.EXTINF[key]
+
 					}
 				})
 				if (items.length)
@@ -219,7 +225,7 @@ builder.defineStreamHandler(args => {
 			const url = decodeURIComponent(args.id.replace(defaults.prefix + 'url_', ''))
 			resolve({ streams: [{ url }] })
 		} else if (config.style == 'Catalogs') {
-			const url = decodeURIComponent(atob(args.id.replace(defaults.prefix + 'url_', '').split('_')[1]))
+			const url = atob(decodeURIComponent(args.id.replace(defaults.prefix + 'url_', '').split('_')[1]))
 			resolve({ streams: [{ url }] })
 		}
 	})
