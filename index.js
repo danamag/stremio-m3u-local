@@ -1,6 +1,9 @@
 const m3u = require('m3u8-reader')
 const needle = require('needle')
-const { config } = require('internal')
+const async = require('async')
+const base64 = require('base-64')
+const { config, proxy } = require('internal')
+const hls = require('./hls')
 
 const defaults = {
 	name: 'M3U Playlists',
@@ -8,6 +11,8 @@ const defaults = {
 	icon: 'https://enjoy.zendesk.com/hc/article_attachments/360004422752/2149-m3u-image.jpg',
 	paginate: 100
 }
+
+hls.init({ prefix: defaults.prefix, type: 'tv', config })
 
 const m3us = {}
 
@@ -154,7 +159,7 @@ builder.defineCatalogHandler(args => {
 			const skip = parseInt(extra.skip || 0)
 			const id = args.id.replace(defaults.prefix + 'cat_', '')
 
-			getM3U(config['m3u_url_'+id], id).then(metas => {
+			hls.getM3U(config['m3u_url_'+id], id).then(metas => {
 				if (!metas.length)
 					reject(defaults.name + ' - Could not get items from M3U playlist: ' + args.id)
 				else {
@@ -192,15 +197,25 @@ builder.defineMetaHandler(args => {
 				background: defaults.icon,
 				logo: defaults.icon
 			}
-			getM3U(config['m3u_url_'+i]).then(videos => {
-				meta.videos = videos
+			hls.getM3U(config['m3u_url_'+i]).then(videos => {
+				const dups = []
+				meta.videos = videos.filter(el => {
+					if (!dups.includes(el.title)) {
+						dups.push(el.title)
+						return true
+					}
+					return false
+				}).map(el => {
+					el.id = defaults.prefix + 'data_' + base64.encode(i + '|||' + el.title)
+					return el
+				})
 				resolve({ meta })
 			}).catch(err => {
 				reject(err)
 			})
 		} else if (config.style == 'Catalogs') {
 			const i = args.id.replace(defaults.prefix + 'url_', '').split('_')[0]
-			getM3U(config['m3u_url_'+i], i).then(metas => {
+			hls.getM3U(config['m3u_url_'+i], i).then(metas => {
 				let meta
 				metas.some(el => {
 					if (el.id == args.id) {
@@ -220,13 +235,50 @@ builder.defineMetaHandler(args => {
 })
 
 builder.defineStreamHandler(args => {
-	return new Promise((resolve, reject) => {
+	return new Promise(async (resolve, reject) => {
 		if (config.style == 'Channels') {
-			const url = decodeURIComponent(args.id.replace(defaults.prefix + 'url_', ''))
-			resolve({ streams: [{ url, title: 'Stream' }] })
+			const data = atob(decodeURIComponent(args.id.replace(defaults.prefix + 'data_', '')))
+			const idx = data.split('|||')[0]
+			const title = data.split('|||')[1]
+			hls.getM3U(config['m3u_url_'+idx]).then(videos => {
+				videos = videos.filter(el => { return el.title == title })
+
+				if (!(videos || []).length) {
+					resolve({ streams: [] })
+					return
+				}
+
+				let streams = []
+
+				const queue = async.queue((task, cb) => {
+					const url = decodeURIComponent(task.id.replace(defaults.prefix + 'url_', ''))
+					hls.processStream(proxy.addProxy(url)).then(results => {
+						streams = streams.concat(results || [])
+						cb()
+					}).catch(e => { cb() })
+				}, 10)
+
+				queue.drain = () => {
+					let streamIdx = 1
+					streams = streams.map(el => {
+						if (el.title.startsWith('Stream')) {
+							el.title = 'Stream #' + streamIdx
+							streamIdx++
+						}
+						return el
+					})
+					resolve({ streams })
+				}
+
+				videos.forEach(el => { queue.push(el) })
+
+			}).catch(err => {
+				reject(err)
+			})
 		} else if (config.style == 'Catalogs') {
 			const url = atob(decodeURIComponent(args.id.replace(defaults.prefix + 'url_', '').split('_')[1]))
-			resolve({ streams: [{ url, title: 'Stream' }] })
+			const streams = await hls.processStream(proxy.addProxy(url))
+			resolve({ streams: streams || [] })
 		}
 	})
 })
