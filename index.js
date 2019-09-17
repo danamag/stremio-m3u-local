@@ -28,69 +28,6 @@ if (config.style == 'Catalogs')
 				extra: [ { name: 'search' }, { name: 'skip' } ]
 			})
 
-function btoa(str) {
-    var buffer;
-
-    if (str instanceof Buffer) {
-      buffer = str;
-    } else {
-      buffer = Buffer.from(str.toString(), 'binary');
-    }
-
-    return buffer.toString('base64');
-}
-
-function atob(str) {
-    return Buffer.from(str, 'base64').toString('binary');
-}
-
-function getM3U(url, idx) {
-	return new Promise((resolve, reject) => {
-		if (m3us[url]) {
-			resolve(m3us[url])
-			return 
-		}
-
-		needle.get(url, (err, resp, body) => {
-			if (!err && body) {
-				const playlist = m3u(body)
-				const items = []
-				let title
-				let poster
-				playlist.forEach(line => {
-					if (typeof line == 'string') {
-						if (config.style == 'Channels')
-							items.push({
-								id: defaults.prefix + 'url_' + encodeURIComponent(line),
-								title
-							})
-						else if (config.style == 'Catalogs')
-							items.push({
-								id: defaults.prefix + 'url_' + idx + '_' + encodeURIComponent(btoa(line)),
-								name: title,
-								posterShape: 'square',
-								poster: poster || undefined,
-								type: 'tv'
-							})
-						title = false
-						poster = false
-					} else if (typeof line == 'object' && line.EXTINF) {
-						for (let key in line.EXTINF)
-							if (!key.includes('tvg-id') && !key.includes('tvg-logo') && !title)
-								title = key
-							else if (key.includes('tvg-logo') && line.EXTINF[key])
-								poster = line.EXTINF[key]
-
-					}
-				})
-				if (items.length)
-					m3us[url] = items
-				resolve(items)
-			}
-		})
-	})
-}
-
 const { addonBuilder, getInterface, getRouter } = require('stremio-addon-sdk')
 
 if (!catalogs.length)
@@ -237,7 +174,7 @@ builder.defineMetaHandler(args => {
 builder.defineStreamHandler(args => {
 	return new Promise(async (resolve, reject) => {
 		if (config.style == 'Channels') {
-			const data = atob(decodeURIComponent(args.id.replace(defaults.prefix + 'data_', '')))
+			const data = base64.decode(decodeURIComponent(args.id.replace(defaults.prefix + 'data_', '')))
 			const idx = data.split('|||')[0]
 			const title = data.split('|||')[1]
 			hls.getM3U(config['m3u_url_'+idx]).then(videos => {
@@ -276,7 +213,7 @@ builder.defineStreamHandler(args => {
 				reject(err)
 			})
 		} else if (config.style == 'Catalogs') {
-			const url = atob(decodeURIComponent(args.id.replace(defaults.prefix + 'url_', '').split('_')[1]))
+			const url = base64.decode(decodeURIComponent(args.id.replace(defaults.prefix + 'url_', '').split('_')[1]))
 			const streams = await hls.processStream(proxy.addProxy(url))
 			resolve({ streams: streams || [] })
 		}
